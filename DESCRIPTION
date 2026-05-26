@@ -1,0 +1,27 @@
+Package: ConnectRCode
+Type: Package
+Title: What the Package Does (Title Case)
+Version: 0.1.0
+Authors@R: c(
+    person("Daniel", "Russ", , "druss@mail.nih.gov", role = c("cre","aut","ctb")),
+    person("Kelsey", "Sanchez", , "Kelsey.Dowling@nih.gov", role = c("aut", "ctb"))
+  )
+Description: More about what it does (maybe more than one line).
+    Continuation lines should be indented.
+License: MIT + file LICENSE
+Encoding: UTF-8
+LazyData: true
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.3
+Imports: 
+    dplyr,
+    dbplyr,
+    bigrquery,
+    purrr,
+    jsonlite,
+    readxl,
+    tools,
+    yaml,
+    rlang
+Depends: 
+    R (>= 3.5)
