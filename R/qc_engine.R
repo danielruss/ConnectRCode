@@ -33,6 +33,7 @@ build_rule_query <- function(bq_tbl, concept_col, c_type, is_na_ok,
     lazy_q <- dplyr::filter(lazy_q, !!!gate_exprs)
   }
 
+
   # ---------------------------------------------------------
   # STEP B: Value check — what counts as a FAILURE?
   # ---------------------------------------------------------

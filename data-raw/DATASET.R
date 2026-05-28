@@ -10,9 +10,9 @@ crossvalid is populated|not_na|FALSE
 na or crossvalid is not populated|is_na|TRUE
 crossvalid equal to char()|length_eq|FALSE
 na or equal to char()|length_eq|TRUE
-equal to or less than char()|length_le|FALSE
+equal to or less than char()|length_le|TRUE
 na or equal to or less than char()|length_le|TRUE
-crossvalid equal to or less than char()|length_le|FALSE
+crossvalid equal to or less than char()|length_le|TRUE
 crossvaliddate|datetime|FALSE
 na or datetime|datetime|TRUE
 na or date|datetime|TRUE

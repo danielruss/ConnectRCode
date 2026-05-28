@@ -5,7 +5,7 @@ register_bq_translation <- function(){
     dbplyr::build_sql("SAFE_CAST(", x, " AS TIMESTAMP) IS NOT NULL")
   }
   bigquery_str_length <- function(x){
-    dbplyr::build_sql("LENGTH(CAST(", x, " AS STRING))")
+    dbplyr::build_sql("LENGTH(COALESCE(SAFE_CAST(", x, " AS STRING), ''))")
   }
   # 2. Register it specifically for the BigQuery connection class
   s3_method <- function(con){
@@ -31,7 +31,7 @@ register_duckdb_translation <- function(){
     dbplyr::build_sql("TRY_CAST(", x, " AS TIMESTAMP) IS NOT NULL")
   }
   duckdb_str_length <- function(x) {
-    dbplyr::build_sql("LENGTH(CAST(", x, " AS TEXT))")
+    dbplyr::build_sql("LENGTH(COALESCE(CAST(", x, " AS VARCHAR), ''))")
   }
 
   # 2. Register it specifically for the DuckDB connection class
