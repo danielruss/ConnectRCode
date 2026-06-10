@@ -3,6 +3,8 @@
 # Internal helpers for reading and writing the registry.
 # ===========================================================================
 
+
+
 #' @noRd
 package_config_dir <- function() {
   dir <- tools::R_user_dir("ConnectRCode", which = "config")
@@ -70,8 +72,19 @@ set_active <- function(module, env) {
     stop("Env '", env, "' not found in module '", module, "'. ",
          "Available: ", paste(names(cfg$modules[[module]]$envs), collapse = ", "))
 
+  .app_state$project    <- cfg
+  .app_state$module     <- cfg$modules[[module]]
+  .app_state$env        <- cfg$envs[[env]]
+  .app_state$rules_file <- normalizePath(
+    file.path(cfg$rules_dir, cfg$modules[[module]]$rules_file),
+    mustWork = FALSE
+  )
+
+  rules <- load_rules()
+  .app_state$rules   <- rules
+
   reg <- read_registry()
-  reg$active <- list(module = module, env = env)
+  reg$active=list(module=module,env=env)
   write_registry(reg)
   message("Active set to '", module, "' / '", env, "'.")
   invisible(NULL)
@@ -202,4 +215,26 @@ bq_connect <- function(module = NULL, env = NULL) {
   }
 
   tbl
+}
+
+
+.app_state <- new.env(parent = emptyenv())
+#' @noRd
+#' Create an active environment to hold the state.
+.onAttach <- function(libname,pkgname){
+  # Initialize empty slots
+  .app_state$project    <- NULL
+  .app_state$module     <- NULL
+  .app_state$rules_file <- NULL
+  .app_state$env        <- NULL
+  .app_state$rules      <- NULL
+
+  reg <- tryCatch(read_registry(), error = function(e) NULL)
+  if (!is.null(reg$active$module)){
+    set_active(reg$active$module,reg$active$env)
+  }
+}
+
+rules <- function(){
+  .app_state$rules
 }

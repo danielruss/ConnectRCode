@@ -7,6 +7,7 @@ crossvalid|list|FALSE
 na or crossvalid|list|TRUE
 crossvalidnotna|not_na|FALSE
 crossvalid is populated|not_na|FALSE
+crossvalid is not populated|is_na|TRUE
 na or crossvalid is not populated|is_na|TRUE
 crossvalid equal to char()|length_eq|FALSE
 na or equal to char()|length_eq|TRUE

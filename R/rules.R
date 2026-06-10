@@ -18,7 +18,12 @@ load_rules <- function(){
     x[!is.na(x)]
   }
 
-  readxl::read_excel(get_active_env()$rules_file) |>
+  if (is.null(.app_state$rules_file)){
+    stop("please load_config and set an active_config")
+  }
+  rules_path <- .app_state
+
+  readxl::read_excel(.app_state$rules_file) |>
     dplyr::mutate( dplyr::across(dplyr::where(is.character),\(x){
       x <- stringr::str_trim(x)
       dplyr::na_if(x, "")

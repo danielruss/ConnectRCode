@@ -97,7 +97,8 @@ build_rule_query <- function(bq_tbl, concept_col, c_type, is_na_ok,
 #'   \item{cross_values}{A list-column of vectors of valid cross values (or NULL)}
 #' }
 #' @export
-run_qc <- function(bq_tbl, rules,chunk_size = 30) {
+run_qc <- function(bq_tbl, chunk_size = 30) {
+  rules <- .app_state$rules
   ## --- 1. select the columns required for QAQC
   key_cols <- c("Connect_ID", "token")
   required_columns <- unique(c(key_cols,rules$ConceptID, unlist(rules$cross_columns,use.names=FALSE)))
