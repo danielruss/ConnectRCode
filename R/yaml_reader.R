@@ -11,6 +11,15 @@
 #' @param path Path to the YAML config file.
 #' @export
 load_config <- function(path) {
+  ## if you gave me a path, I need save it later.
+  save_path=TRUE
+  if (missingArg(path)){
+    path = .app_state$config_file
+    save_path = FALSE
+  }
+  path = path %||% .app_state$config_file
+
+  if (is.null(path)) stop("path is null")
   path <- normalizePath(path, mustWork = FALSE)
   if (!file.exists(path)) stop("Config file not found: ", path)
 
@@ -69,14 +78,21 @@ load_config <- function(path) {
   }
 
   # --- Store only the path in the registry ---
-  reg <- read_registry()
-  reg$config_file <- path
-  write_registry(reg)
+  .app_state$config_file <- path
+  .app_state$config <- cfg
+  #...  need to update the config_file
+  if (save_path){
+    write_state()
+  }
 
-  message("Loaded config: ", path)
-  message("  Environments : ", paste(known_envs, collapse = ", "))
-  message("  Modules      : ", paste(names(cfg$modules), collapse = ", "))
+  configs()
   invisible(path)
+}
+
+configs <- function(){
+  message("Loaded config: ", .app_state$config_file)
+  message("  Environments : ", paste(names(.app_state$config$envs), collapse = ", "))
+  message("  Modules      : ", paste(names(.app_state$config$modules), collapse = ", "))
 }
 
 #' Reload and revalidate the config from the stored YAML path

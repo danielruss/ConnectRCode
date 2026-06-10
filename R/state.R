@@ -1,9 +1,7 @@
 # ===========================================================================
-# R/registry_helpers.R
+# R/state.R
 # Internal helpers for reading and writing the registry.
 # ===========================================================================
-
-
 
 #' @noRd
 package_config_dir <- function() {
@@ -12,30 +10,58 @@ package_config_dir <- function() {
   dir
 }
 
+# the following is stored in the state.json
+# config_file... (yaml file holding the various configurations)
+# active module. (module1, module2... )
+# active environment (prod/stage/dev)
 #' @noRd
-registry_path <- function() file.path(package_config_dir(), "registry.json")
+state_path <- function() file.path(package_config_dir(), "state.json")
 
 #' @noRd
-read_registry <- function() {
-  path <- registry_path()
-  if (file.exists(path)) {
-    jsonlite::read_json(path)
-  } else {
-    list(config_file = NULL, active = list(module = NULL, env = NULL))
+load_state <- function() {
+  path <- state_path()
+  rm(list=ls(.app_state),envir = .app_state)
+  # if the state was not initialized
+  # just return..  the env is clean
+  if (!file.exists(path)) {
+      return(invisible(NULL))
   }
+
+  # otherwise load the the enviroment...
+  l=jsonlite::read_json(path)
+
+  # if the user loaded a config.yaml file...
+  # reload it now..
+  if (!is.null(l$config_file)) {
+    .app_state$config_file <- l$config_file
+    load_config()
+  }
+
+  # if the user selected a module/env
+  # reload it now...
+  if (!is.null(l$module)){
+    .app_state$module <- l$module
+    .app_state$environment <- l$environment
+    activate()
+  }
+  invisible(NULL)
+}
+#' @noRd
+write_state <- function(){
+
+  save<-intersect(c("config_file", "module","environment"),ls(.app_state))
+
+  l <- save  |> purrr::reduce(\(a,x) {
+    a[[x]] <- get(x,envir = .app_state)
+    a
+  },.init=list())
+
+  jsonlite::write_json(l,path = state_path(),auto_unbox = T)
+  invisible(NULL)
 }
 
-#' @noRd
-write_registry <- function(reg) {
-  jsonlite::write_json(reg, registry_path(), pretty = TRUE, auto_unbox = TRUE)
-}
-
-#' @noRd
-read_config <- function() {
-  reg <- read_registry()
-  if (is.null(reg$config_file))
-    stop("No config file found. Run load_config() first.")
-  yaml::read_yaml(reg$config_file)
+state <- function(){
+  .app_state
 }
 
 #' @noRd
@@ -63,30 +89,34 @@ read_config <- function() {
 #' @param env    Environment name.
 #' @rdname active
 #' @export
-set_active <- function(module, env) {
-  cfg <- read_config()
+activate <- function(module=NULL, env=NULL) {
+  save = !is.null(module) && !is.null(env)
+  if (is.null(module)) { module = .app_state$module }
+  if (is.null(env)) { env = .app_state$environment }
 
+  cfg <- .app_state$config
+  if (is.null(cfg)){
+    stop("The study YAML configs where not loaded.  Please run `load_config(yaml)`")
+  }
   if (!module %in% names(cfg$modules))
     stop("Module '", module, "' not found.")
   if (!env %in% names(cfg$modules[[module]]$envs))
     stop("Env '", env, "' not found in module '", module, "'. ",
          "Available: ", paste(names(cfg$modules[[module]]$envs), collapse = ", "))
 
-  .app_state$project    <- cfg
-  .app_state$module     <- cfg$modules[[module]]
-  .app_state$env        <- cfg$envs[[env]]
-  .app_state$rules_file <- normalizePath(
+  ## the env=prod/stage/dev
+  .app_state$environment <- env
+  ## the module is module1, module2
+  .app_state$module      <- module
+  .app_state$rules_file  <- normalizePath(
     file.path(cfg$rules_dir, cfg$modules[[module]]$rules_file),
     mustWork = FALSE
   )
 
-  rules <- load_rules()
-  .app_state$rules   <- rules
+  .app_state$rules   <- load_rules()
 
-  reg <- read_registry()
-  reg$active=list(module=module,env=env)
-  write_registry(reg)
-  message("Active set to '", module, "' / '", env, "'.")
+  if (save) { write_state() }
+  message("Active module set to '", module, " '('", env, "').")
   invisible(NULL)
 }
 
@@ -100,34 +130,23 @@ set_active <- function(module, env) {
 #' @return A list with project, billing_project, dataset, table, joins, rules_file.
 #' @rdname active
 #' @export
-get_active_env <- function(module = NULL, env = NULL) {
-  reg    <- read_registry()
-  cfg    <- read_config()
-  module <- module %||% reg$active$module
-  env    <- env    %||% reg$active$env
+active_env <- function() {
+  if (!exists("module",envir = .app_state)){
+    message("no active module, use activate(module,environment)")
+  }
+  module = .app_state$module
+  env = .app_state$environment
+  rules_file = .app_state$rules_file
 
-  if (is.null(module) || is.null(env))
-    stop("No active module/env. Use set_active().")
-  if (!module %in% names(cfg$modules))
-    stop("Module '", module, "' not found.")
-  if (!env %in% names(cfg$modules[[module]]$envs))
-    stop("Env '", env, "' not found in module '", module, "'.")
+  message("module: ",module,"\nenvironment: ",env,"\nrules :",rules_file)
 
-  global_env <- cfg$envs[[env]]
-  module_env <- cfg$modules[[module]]$envs[[env]]
-  rules_file <- normalizePath(
-    file.path(cfg$rules_dir, cfg$modules[[module]]$rules_file),
-    mustWork = FALSE
-  )
-
-  list(
-    project         = global_env$project,
-    billing_project = global_env$billing_project %||% global_env$project,
-    dataset         = module_env$dataset,
-    table           = module_env$table,
-    joins           = cfg$modules[[module]]$joins %||% list(),
-    rules_file      = rules_file
-  )
+  project <- .app_state$config$envs[[env]]$project
+  billing <- .app_state$config$modules[[module]]$envs[[env]]$billing %||% project
+  dataset <- .app_state$config$modules[[module]]$envs[[env]]$dataset
+  table   <- .app_state$config$modules[[module]]$envs[[env]]$table
+  joins   <- .app_state$config$modules[[.app_state$module]]$joins
+  message("project: ",project,"\n\tbilling: ",billing,"\n\tdataset: ",dataset,"\n\ttable:",table)
+  if (!is.null(joins)) print(joins)
 }
 
 # ---------------------------------------------------------------------------
@@ -188,20 +207,28 @@ list_modules <- function() {
 #' @return A lazy \code{dplyr} tbl.
 #' @export
 bq_connect <- function(module = NULL, env = NULL) {
-  cfg <- get_active_env(module, env)
 
   if (!bigrquery::bq_has_token()) bigrquery::bq_auth()
 
+  module = .app_state$module
+  env = .app_state$environment
+
+  project <- .app_state$config$envs[[env]]$project
+  billing <- .app_state$config$modules[[module]]$envs[[env]]$billing %||% project
+  dataset <- .app_state$config$modules[[module]]$envs[[env]]$dataset
+  table   <- .app_state$config$modules[[module]]$envs[[env]]$table
+  joins   <- .app_state$config$modules[[module]]$joins
+
   con <- bigrquery::dbConnect(
     bigrquery::bigquery(),
-    project = cfg$project,
-    dataset = cfg$dataset,
-    billing = cfg$billing_project
+    project = project,
+    dataset = dataset,
+    billing = billing
   )
 
-  tbl <- dplyr::tbl(con, cfg$table)
+  tbl <- dplyr::tbl(con, table)
 
-  for (j in cfg$joins) {
+  for (j in joins) {
     where_exprs <- purrr::map2(
       names(j$where %||% list()),
       j$where %||% list(),
@@ -222,17 +249,7 @@ bq_connect <- function(module = NULL, env = NULL) {
 #' @noRd
 #' Create an active environment to hold the state.
 .onAttach <- function(libname,pkgname){
-  # Initialize empty slots
-  .app_state$project    <- NULL
-  .app_state$module     <- NULL
-  .app_state$rules_file <- NULL
-  .app_state$env        <- NULL
-  .app_state$rules      <- NULL
-
-  reg <- tryCatch(read_registry(), error = function(e) NULL)
-  if (!is.null(reg$active$module)){
-    set_active(reg$active$module,reg$active$env)
-  }
+  tryCatch(load_state(), error = function(e) NULL)
 }
 
 rules <- function(){

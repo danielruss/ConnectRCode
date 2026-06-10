@@ -19,9 +19,8 @@ load_rules <- function(){
   }
 
   if (is.null(.app_state$rules_file)){
-    stop("please load_config and set an active_config")
+    stop("the rules file is not defined.  Did you forget to activate() ?")
   }
-  rules_path <- .app_state
 
   readxl::read_excel(.app_state$rules_file) |>
     dplyr::mutate( dplyr::across(dplyr::where(is.character),\(x){

@@ -18,7 +18,7 @@
 #' @noRd
 build_rule_query <- function(bq_tbl, concept_col, c_type, is_na_ok,
                              valid_values, cross_columns, cross_values, rule_id) {
-  cli::cli_inform(paste0("... starting rule_id: ",rule_id,"\n"))
+  #cli::cli_inform(paste0("... starting rule_id: ",rule_id,"\n"))
   col_sym <- rlang::sym(concept_col)
 
   # ---------------------------------------------------------
@@ -61,7 +61,7 @@ build_rule_query <- function(bq_tbl, concept_col, c_type, is_na_ok,
     rlang::expr((!!fail_expr) | (!!na_expr))
   }
 
-  cli::cli_inform(rlang::expr_text(final_expr))
+  #cli::cli_inform(rlang::expr_text(final_expr))
   # ---------------------------------------------------------
   # STEP D: Filter to failures, tag with rule metadata
   # ---------------------------------------------------------
@@ -114,6 +114,15 @@ run_qc <- function(bq_tbl, chunk_size = 30) {
     )
   cli::cli_inform("Temp table ready.")
 
+  # only rules in the Qctype_mapping work...
+  bad_rules <- rules |> dplyr::filter(!tolower(Qctype) %in% names(Qctype_mapping))
+  if (nrow(bad_rules)>0) {
+    message(rep("-",55),"\nBad rules\n",rep("-",55))
+    print(bad_rules)
+    message(rep("-",55))
+  }
+
+  rules <- rules |> dplyr::filter(tolower(Qctype) %in% names(Qctype_mapping))
 
   chunks <- rules |>
     ## Prepare the metadata...

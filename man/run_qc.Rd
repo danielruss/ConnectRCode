@@ -4,7 +4,7 @@
 \alias{run_qc}
 \title{Run all QC rules against a BigQuery table}
 \usage{
-run_qc(bq_tbl, rules)
+run_qc(bq_tbl, chunk_size = 30)
 }
 \arguments{
 \item{bq_tbl}{A lazy bigrquery table.}
@@ -24,8 +24,8 @@ Run all QC rules against a BigQuery table
 \item{ConceptID}{Column in \code{bq_tbl} to validate}
 \item{check_type}{One of "List", "Length", "Numeric"}
 \item{is_na_ok}{Logical — is NA an acceptable value?}
-\item{valid_vals}{A list-column of valid values / max length}
-\item{cross_cols}{A list-column of cross-condition column names (or NULL)}
-\item{cross_vals}{A list-column of vectors of valid cross values (or NULL)}
+\item{valid_values}{A list-column of valid values / max length}
+\item{cross_columns}{A list-column of cross-condition column names (or NULL)}
+\item{cross_values}{A list-column of vectors of valid cross values (or NULL)}
 }
 }
