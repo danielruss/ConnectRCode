@@ -23,10 +23,13 @@ load_rules <- function(){
   }
 
   readxl::read_excel(.app_state$rules_file) |>
-    dplyr::mutate( dplyr::across(dplyr::where(is.character),\(x){
-      x <- stringr::str_trim(x)
-      dplyr::na_if(x, "")
-    })) |>
+    dplyr::mutate(
+      rule_id = as.character(rule_id),
+      dplyr::across(dplyr::where(is.character),\(x){
+        x <- stringr::str_trim(x)
+        dplyr::na_if(x, "")
+        })
+      ) |>
     dplyr::mutate(
       cross_columns= purrr::pmap(dplyr::pick( dplyr::matches("CrossVariableConceptID\\d+$")),get_cols),
       cross_values = purrr::pmap(dplyr::pick( dplyr::matches("CrossVariableConceptID\\d+Value$")),get_cols),

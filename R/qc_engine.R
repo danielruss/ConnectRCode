@@ -104,15 +104,8 @@ run_qc <- function(bq_tbl, chunk_size = 30) {
   required_columns <- unique(c(key_cols,rules$ConceptID, unlist(rules$cross_columns,use.names=FALSE)))
   required_columns <- required_columns[!is.na(required_columns)]
 
-  ## --- 2. Materialize a trimmed temp table in BigQuery -------------------
-  cli::cli_inform("Materializing trimmed table to BigQuery temp table...")
-  tbl <- bq_tbl |>
-    dplyr::select(dplyr::any_of(required_columns)) |>
-    dplyr::compute(
-      name      = paste0("qc_temp_", format(Sys.time(), "%Y%m%d_%H%M%S")),
-      temporary = TRUE
-    )
-  cli::cli_inform("Temp table ready.")
+  lzy_tbl <- bq_tbl |>
+    dplyr::select(dplyr::any_of(required_columns)) #|>
 
   # only rules in the Qctype_mapping work...
   bad_rules <- rules |> dplyr::filter(!tolower(Qctype) %in% names(Qctype_mapping))
@@ -135,12 +128,11 @@ run_qc <- function(bq_tbl, chunk_size = 30) {
     dplyr::group_split(chunk_id, .keep = FALSE)
 
   chunks |> purrr::map(\(chunk){
-
     chunk |> purrr::pmap(
       \(rule_id, ConceptID, check_type, is_na_ok,
         ValidValues, cross_columns, cross_values, ...) {
         build_rule_query(
-          bq_tbl    = tbl,
+          bq_tbl    = lzy_tbl,
           concept_col = ConceptID,
           c_type    = check_type,
           is_na_ok  = is_na_ok,
@@ -152,7 +144,6 @@ run_qc <- function(bq_tbl, chunk_size = 30) {
       }
     ) |>
       purrr::reduce(dplyr::union_all) |>  # one massive lazy query
-      #dplyr::count(qc_rule_id, qc_column, qc_check_type) |>
       dplyr::collect()                    # one round trip to BigQuery
   },.progress = "Running QC chunks") |>
     dplyr::bind_rows()
