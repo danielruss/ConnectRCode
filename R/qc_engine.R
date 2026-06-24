@@ -43,12 +43,12 @@ build_rule_query <- function(bq_tbl, concept_col, c_type, is_na_ok,
                       length_le  = rlang::expr(str_length(!!col_sym) > local(!!as.integer(valid_values[[1]]))),
                       datetime   = rlang::expr(!is.datetime(!!col_sym)),
                       datebefore = rlang::expr(!!col_sym >= local(!!valid_values[[1]])),
-                      is_na      = rlang::expr(!is.na(!!col_sym)),
-                      not_na     = rlang::expr(is.na(!!col_sym)),
+                      is_na      = rlang::expr(!is.na(!!col_sym) & str_length(!!col_sym)>0),
+                      not_na     = rlang::expr(is.na(!!col_sym) | str_length(!!col_sym)==0 ),
                       stop("Unknown check type: ", c_type)
   )
 
-  na_expr <- rlang::expr(is.na(!!col_sym))
+  na_expr <- rlang::expr(is.na(!!col_sym) | str_length(!!col_sym)==0)
 
   # ---------------------------------------------------------
   # STEP C: Combine failure + NA logic

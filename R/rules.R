@@ -40,3 +40,21 @@ load_rules <- function(){
     dplyr::relocate(c(cross_columns,cross_values),.after=ValidValues) |>
     dplyr::select(-dplyr::matches("CrossVariableConceptID\\d+($|Value$)"))
 }
+
+#' reload rules
+#'
+#' @description
+#' A function reloads rules in case you changed them
+#'
+#'
+#' @returns a tibble of rules
+#' @export
+#'
+reload_rules <- function(){
+  .app_state$rules   <- load_rules()
+}
+
+
+force_rules <- function(df){
+  .app_state$rules   <- df
+}

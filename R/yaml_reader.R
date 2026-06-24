@@ -103,4 +103,5 @@ reload_config <- function() {
   if (is.null(reg$config_file))
     stop("No config file found. Run load_config() first.")
   load_config(reg$config_file)
+  .app_state$rules   <- load_rules()
 }

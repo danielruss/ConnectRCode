@@ -14,6 +14,7 @@ na or equal to char()|length_eq|TRUE
 equal to or less than char()|length_le|TRUE
 na or equal to or less than char()|length_le|TRUE
 crossvalid equal to or less than char()|length_le|TRUE
+crossvalid datetime|datetime|FALSE
 crossvaliddate|datetime|FALSE
 na or datetime|datetime|TRUE
 na or date|datetime|TRUE
