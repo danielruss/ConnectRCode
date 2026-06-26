@@ -218,6 +218,7 @@ bq_connect <- function(module = NULL, env = NULL) {
   dataset <- .app_state$config$modules[[module]]$envs[[env]]$dataset
   table   <- .app_state$config$modules[[module]]$envs[[env]]$table
   joins   <- .app_state$config$modules[[module]]$joins
+  wheres  <- .app_state$config$modules[[module]]$where
 
   con <- bigrquery::dbConnect(
     bigrquery::bigquery(),
@@ -228,6 +229,10 @@ bq_connect <- function(module = NULL, env = NULL) {
 
   tbl <- dplyr::tbl(con, table)
 
+  #---------------------------------------------------------
+  # Join the current table
+  # with all the "joined tables (only taking the needed columns)
+  #---------------------------------------------------------
   for (j in joins) {
     where_exprs <- purrr::map2(
       names(j$where %||% list()),
@@ -240,6 +245,16 @@ bq_connect <- function(module = NULL, env = NULL) {
     join_tbl <- dplyr::select(join_tbl, dplyr::all_of(c(j$key, j$columns)))
     tbl <- dplyr::left_join(tbl, join_tbl, by = j$key)
   }
+
+  #---------------------------------------------------------
+  # Handle global wheres
+  # Do it now while I have all the variables.
+  #---------------------------------------------------------
+  tbl <- purrr::reduce(names(wheres),
+                       .init=tbl,
+                       .f=\(x,nm){
+                         dplyr::filter(x,!!rlang::sym(nm) %in% local(!!wheres[[nm]]))
+                       })
 
   tbl
 }

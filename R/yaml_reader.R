@@ -94,14 +94,3 @@ configs <- function(){
   message("  Environments : ", paste(names(.app_state$config$envs), collapse = ", "))
   message("  Modules      : ", paste(names(.app_state$config$modules), collapse = ", "))
 }
-
-#' Reload and revalidate the config from the stored YAML path
-#'
-#' @export
-reload_config <- function() {
-  reg <- read_registry()
-  if (is.null(reg$config_file))
-    stop("No config file found. Run load_config() first.")
-  load_config(reg$config_file)
-  .app_state$rules   <- load_rules()
-}

@@ -61,6 +61,7 @@ build_rule_query <- function(bq_tbl, concept_col, c_type, is_na_ok,
     rlang::expr((!!fail_expr) | (!!na_expr))
   }
 
+
   #cli::cli_inform(rlang::expr_text(final_expr))
   # ---------------------------------------------------------
   # STEP D: Filter to failures, tag with rule metadata
