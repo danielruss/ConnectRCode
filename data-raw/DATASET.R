@@ -19,6 +19,7 @@ crossvaliddate|datetime|FALSE
 na or datetime|datetime|TRUE
 na or date|datetime|TRUE
 na or crossvalid datetime|datetime|TRUE
+na or crossvaliddate|datetime|TRUE
 na or valid before date|datebefore|TRUE
 "
 df <- read.csv(text = raw_csv,sep = "|")
