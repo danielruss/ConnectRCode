@@ -1,10 +1,21 @@
 is_ymd <- function(x){
-  !is.na(strptime(as.character(x),format = "%Y%m%d"))
+  ## I accept both yyyy/mm/dd or yyyy/mm/dd => so get rid of the "/"
+  x <- gsub("/","",x)
+  ## if the number of chars==8 check if it is a valid date... else FALSE
+  ifelse(nchar(x)==8,!is.na(strptime(as.character(x),format = "%Y%m%d")),FALSE)
 }
 is_ym <- function(x){
-  !is.na(strptime(as.character(x),format = "%Y%m"))
+  ## I accept both yyyymm or yyyy/mm => so get rid of the "/"
+  x <- gsub("/","",x)
+  ## if the number of chars==6 add a day otherwise make the text ""
+  ## use is_ymd to check if it is a real date or invalid text
+  x <- ifelse(nchar(x)==6,paste0(x,"01"),character(1L))
+  is_ymd(x)
 }
 
+is_timestamp <- function(x){
+  !is.na(strptime(as.character(x),format = "%Y-%m-%dT%H:%M:%OSZ", tz = "UTC"))
+}
 # This adds sql translations to various connection types that we use
 register_bq_translation <- function(){
   # 1. Define the SQL logic for BigQuery
@@ -12,10 +23,12 @@ register_bq_translation <- function(){
     dbplyr::build_sql("SAFE_CAST(", x, " AS TIMESTAMP) IS NOT NULL")
   }
   bigquery_is_ymd = function(x){
-    dbplyr::build_sql("SAFE.PARSE_DATE('%Y%m%d', SAFE_CAST(", x, " AS STRING)) IS NOT NULL")
+    dbplyr::build_sql("(SAFE.PARSE_DATE('%Y%m%d', SAFE_CAST(", x, " AS STRING)) IS NOT NULL OR ",
+                      "SAFE.PARSE_DATE('%Y/%m/%d', SAFE_CAST(", x, " AS STRING)) IS NOT NULL)")
   }
   bigquery_is_ym = function(x){
-    dbplyr::build_sql("SAFE.PARSE_DATE('%Y%m', SAFE_CAST(", x, " AS STRING)) IS NOT NULL")
+    dbplyr::build_sql("(SAFE.PARSE_DATE('%Y%m', SAFE_CAST(", x, " AS STRING)) IS NOT NULL OR ",
+                      "SAFE.PARSE_DATE('%Y/%m', SAFE_CAST(", x, " AS STRING)) IS NOT NULL)")
   }
   bigquery_str_length <- function(x){
     dbplyr::build_sql("LENGTH(COALESCE(SAFE_CAST(", x, " AS STRING), ''))")
@@ -46,10 +59,12 @@ register_duckdb_translation <- function(){
     dbplyr::build_sql("TRY_CAST(", x, " AS TIMESTAMP) IS NOT NULL")
   }
   duckdb_is_ymd = function(x){
-    dbplyr::build_sql("TRY_STRPTIME(TRY_CAST(", x, " AS VARCHAR), '%Y%m%d') IS NOT NULL")
+    dbplyr::build_sql("(TRY_STRPTIME(TRY_CAST(", x, " AS VARCHAR), '%Y%m%d') IS NOT NULL OR ",
+                      "TRY_STRPTIME(TRY_CAST(", x, " AS VARCHAR), '%Y/%m/%d') IS NOT NULL)")
   }
   duckdb_is_ym = function(x){
-    dbplyr::build_sql("TRY_STRPTIME(TRY_CAST(", x, " AS VARCHAR), '%Y%m') IS NOT NULL")
+    dbplyr::build_sql("(TRY_STRPTIME(TRY_CAST(", x, " AS VARCHAR), '%Y%m') IS NOT NULL OR ",
+                      "TRY_STRPTIME(TRY_CAST(", x, " AS VARCHAR), '%Y/%m') IS NOT NULL)")
   }
   duckdb_str_length <- function(x) {
     dbplyr::build_sql("LENGTH(COALESCE(TRY_CAST(", x, " AS VARCHAR), ''))")
