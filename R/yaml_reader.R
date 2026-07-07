@@ -63,7 +63,7 @@ load_config <- function(path) {
     for (env in names(m$envs)) {
       e <- m$envs[[env]]
       if (is.null(e$dataset)) stop("Module '", mod, "' env '", env, "' missing: dataset")
-      if (is.null(e$table))   stop("Module '", mod, "' env '", env, "' missing: table")
+      if (is.null(e$tables))   stop("Module '", mod, "' env '", env, "' missing: tables")
     }
 
     # --- Validate joins ---
@@ -94,3 +94,5 @@ configs <- function(){
   message("  Environments : ", paste(names(.app_state$config$envs), collapse = ", "))
   message("  Modules      : ", paste(names(.app_state$config$modules), collapse = ", "))
 }
+
+

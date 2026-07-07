@@ -90,7 +90,7 @@ state <- function(){
 #' @rdname active
 #' @export
 activate <- function(module=NULL, env=NULL) {
-  save = !is.null(module) && !is.null(env)
+  save = !is.null(module) || !is.null(env)
   if (is.null(module)) { module = .app_state$module }
   if (is.null(env)) { env = .app_state$environment }
 
@@ -143,10 +143,14 @@ active_env <- function() {
   project <- .app_state$config$envs[[env]]$project
   billing <- .app_state$config$modules[[module]]$envs[[env]]$billing %||% project
   dataset <- .app_state$config$modules[[module]]$envs[[env]]$dataset
-  table   <- .app_state$config$modules[[module]]$envs[[env]]$table
-  joins   <- .app_state$config$modules[[.app_state$module]]$joins
-  message("project: ",project,"\n\tbilling: ",billing,"\n\tdataset: ",dataset,"\n\ttable:",table)
-  if (!is.null(joins)) print(joins)
+  table   <- .app_state$config$modules[[module]]$envs[[env]]$tables
+  joins   <- .app_state$config$modules[[module]]$joins
+  tables <- purrr::map_chr(table, "name") |> paste(collapse = ", ")
+  message("project: ",project,"\n\tbilling: ",billing,"\n\tdataset: ",dataset,"\n\ttable:",tables)
+  if (!is.null(joins)) {
+    joins |>purrr::map( \(j) message("join table: ",j$table,"\n\tkey: ",j$key,"\n\tcolumns: ",paste0(j$columns,collapse = ", ") ))
+  }
+  invisible(NULL)
 }
 
 # ---------------------------------------------------------------------------
@@ -157,26 +161,27 @@ active_env <- function() {
 #'
 #' @export
 list_modules <- function() {
-  reg <- read_registry()
-  cfg <- read_config()
+  modules <- .app_state$config$modules
 
-  if (length(cfg$modules) == 0L) {
+  if (length(modules) == 0L) {
     message("No modules found in config.")
     return(invisible(NULL))
   }
 
-  for (mod in names(cfg$modules)) {
-    m <- cfg$modules[[mod]]
+  for (mod in names(modules)) {
+    m <- modules[[mod]]
     cat(sprintf("\n[%s]  rules: %s\n", mod, m$rules_file))
     for (env in names(m$envs)) {
       e       <- m$envs[[env]]
-      g       <- cfg$envs[[env]]
-      active  <- identical(reg$active$module, mod) && identical(reg$active$env, env)
+      g       <- .app_state$config$envs[[env]]
+      active  <- identical(.app_state$module, mod) && identical(.app_state$environment, env)
       marker  <- if (active) " <--" else ""
       billing <- if (!is.null(g$billing_project))
         paste0(" (billing: ", g$billing_project, ")") else ""
-      cat(sprintf("  %-10s %s.%s.%s%s%s\n",
-                  env, g$project, e$dataset, e$table, billing, marker))
+      for (t in e$tables){
+        cat(sprintf("  %-10s %s.%s.%s%s%s\n",
+                    env, g$project, e$dataset, t, billing, marker))
+      }
     }
     if (length(m$joins) > 0) {
       for (j in m$joins) {
@@ -190,7 +195,7 @@ list_modules <- function() {
       }
     }
   }
-  invisible(cfg$modules)
+  invisible(names(.app_state$config$modules))
 }
 
 # ---------------------------------------------------------------------------
@@ -216,9 +221,11 @@ bq_connect <- function(module = NULL, env = NULL) {
   project <- .app_state$config$envs[[env]]$project
   billing <- .app_state$config$modules[[module]]$envs[[env]]$billing %||% project
   dataset <- .app_state$config$modules[[module]]$envs[[env]]$dataset
-  table   <- .app_state$config$modules[[module]]$envs[[env]]$table
+  tables   <- .app_state$config$modules[[module]]$envs[[env]]$tables
   joins   <- .app_state$config$modules[[module]]$joins
   wheres  <- .app_state$config$modules[[module]]$where
+
+
 
   con <- bigrquery::dbConnect(
     bigrquery::bigquery(),
@@ -227,7 +234,27 @@ bq_connect <- function(module = NULL, env = NULL) {
     billing = billing
   )
 
-  tbl <- dplyr::tbl(con, table)
+  tbl_names <- purrr::map_chr(tables,\(x) x$name)
+  tbl_list <- purrr::map(tbl_names,\(x) dplyr::tbl(con,x)) |> setNames(tbl_names)
+  all_cols <- tbl_list |>
+    purrr::map(colnames) |>
+    purrr::reduce(union)
+
+  align_tbl <- function(x){
+    missing_cols <- setdiff(all_cols, colnames(x))
+    x |>
+      dplyr::mutate(!!!rlang::set_names(
+        purrr::map(missing_cols, \(nm) rlang::expr(NA)),
+        missing_cols
+      )) |>
+      dplyr::select(dplyr::all_of(all_cols))
+  }
+
+  tbl <- tbl_list |>
+    purrr::map(align_tbl) |>
+    purrr::reduce(dplyr::union_all)
+
+  #tbl <- dplyr::tbl(con, table)
 
   #---------------------------------------------------------
   # Join the current table
