@@ -16,6 +16,9 @@ is_ym <- function(x){
 is_timestamp <- function(x){
   !is.na(strptime(as.character(x),format = "%Y-%m-%dT%H:%M:%OSZ", tz = "UTC"))
 }
+
+str_length <- stringr::str_length
+
 # This adds sql translations to various connection types that we use
 register_bq_translation <- function(){
   # 1. Define the SQL logic for BigQuery

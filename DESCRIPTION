@@ -22,6 +22,7 @@ Imports:
     readxl,
     tools,
     yaml,
-    rlang
+    rlang,
+    stringr
 Depends: 
-    R (>= 3.5)
+    R (>= 4.1)

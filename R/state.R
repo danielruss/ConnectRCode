@@ -91,6 +91,7 @@ state <- function(){
 #' @export
 activate <- function(module=NULL, env=NULL) {
   save = !is.null(module) || !is.null(env)
+
   if (is.null(module)) { module = .app_state$module }
   if (is.null(env)) { env = .app_state$environment }
 
@@ -180,7 +181,7 @@ list_modules <- function() {
         paste0(" (billing: ", g$billing_project, ")") else ""
       for (t in e$tables){
         cat(sprintf("  %-10s %s.%s.%s%s%s\n",
-                    env, g$project, e$dataset, t, billing, marker))
+                    env, g$project, e$dataset, t$name, billing, marker))
       }
     }
     if (length(m$joins) > 0) {
@@ -215,6 +216,15 @@ bq_connect <- function(module = NULL, env = NULL) {
 
   if (!bigrquery::bq_has_token()) bigrquery::bq_auth()
 
+  # if the user passed a module/env lets update the
+  # .app_state by calling activate
+  if (!is.null(module) || !is.null(env) ){
+    activate(
+      module = module %||% .app_state$module,
+      env = env %||% .app_state$environment
+    )
+  }
+
   module = .app_state$module
   env = .app_state$environment
 
@@ -235,7 +245,10 @@ bq_connect <- function(module = NULL, env = NULL) {
   )
 
   tbl_names <- purrr::map_chr(tables,\(x) x$name)
-  tbl_list <- purrr::map(tbl_names,\(x) dplyr::tbl(con,x)) |> setNames(tbl_names)
+  tbl_list <- purrr::map(tables,\(x) {
+    dplyr::tbl(con,x$name) |>
+      dplyr::filter(dplyr::if_all(dplyr::all_of(x$key),\(key) !is.na(key) & key!=""))
+  }) |> setNames(tbl_names)
   all_cols <- tbl_list |>
     purrr::map(colnames) |>
     purrr::reduce(union)
@@ -253,7 +266,6 @@ bq_connect <- function(module = NULL, env = NULL) {
   tbl <- tbl_list |>
     purrr::map(align_tbl) |>
     purrr::reduce(dplyr::union_all)
-
   #tbl <- dplyr::tbl(con, table)
 
   #---------------------------------------------------------
@@ -288,8 +300,8 @@ bq_connect <- function(module = NULL, env = NULL) {
 
 
 .app_state <- new.env(parent = emptyenv())
-#' @noRd
 #' Create an active environment to hold the state.
+#' @noRd
 .onAttach <- function(libname,pkgname){
   tryCatch(load_state(), error = function(e) NULL)
 }

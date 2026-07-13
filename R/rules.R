@@ -13,9 +13,38 @@ utils::globalVariables(c("ValidValues","cross_columns","cross_values"))
 #' @export
 #'
 load_rules <- function(){
-  get_cols <- function(...){
-    x <- trimws(c(...))
-    x[!is.na(x)]
+  get_cross_pairs <- function(...){
+    x <- list(...)
+
+
+    cross_cols <- grep("^CrossVariableConceptID\\d+$", names(x), value = TRUE)
+    cross_vals <- paste0(cross_cols,"Value")
+
+    xcols <- trimws(unlist(x[cross_cols], use.names = FALSE))
+    xvals <- trimws(unlist(x[cross_vals], use.names = FALSE))
+
+    col_present <- !is.na(xcols) & nzchar(xcols)
+    val_present <- !is.na(xvals) & nzchar(xvals)
+
+    bad_rule <- any(xor(col_present,val_present))
+    if (bad_rule) {
+      return(list(cross_cols=NA,cross_vals=NA,bad_cross=TRUE))
+    }
+
+    keep <- col_present & val_present
+    if (!any(keep)){
+      return(list(cross_cols=NA,cross_vals=NA,bad_cross=FALSE))
+    }
+
+    col_values <- xcols[keep]
+    val_values <- stringr::str_split(xvals[keep], "\\s*,\\s*")
+
+
+    list(
+      cross_cols=col_values,
+      cross_vals=val_values,
+      bad_cross=bad_rule
+    )
   }
 
   if (is.null(.app_state$rules_file)){
@@ -31,14 +60,16 @@ load_rules <- function(){
         })
       ) |>
     dplyr::mutate(
-      cross_columns= purrr::pmap(dplyr::pick( dplyr::matches("CrossVariableConceptID\\d+$")),get_cols),
-      cross_values = purrr::pmap(dplyr::pick( dplyr::matches("CrossVariableConceptID\\d+Value$")),get_cols),
+      cross_pairs = purrr::pmap(dplyr::pick( dplyr::matches("CrossVariableConceptID\\d+($|Value$)")),get_cross_pairs),
+      cross_values = purrr::map(cross_pairs,\(x) x$cross_vals),
+      cross_columns = purrr::map(cross_pairs,\(x) x$cross_cols),
+      bad_cross = purrr::map_lgl(cross_pairs,\(x) x$bad_cross),
       ValidValues = strsplit(ValidValues,",\\s*"),
       Qctype = gsub("crossvalid\\d+","crossvalid",Qctype,ignore.case = TRUE)
     ) |>
     dplyr::filter(!is.na(Qctype)) |>
     dplyr::relocate(c(cross_columns,cross_values),.after=ValidValues) |>
-    dplyr::select(-dplyr::matches("CrossVariableConceptID\\d+($|Value$)"))
+    dplyr::select(-c(cross_pairs,dplyr::matches("CrossVariableConceptID\\d+($|Value$)")))
 }
 
 #' reload rules
