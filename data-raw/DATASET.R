@@ -14,13 +14,16 @@ na or equal to char()|length_eq|TRUE
 equal to or less than char()|length_le|TRUE
 na or equal to or less than char()|length_le|TRUE
 crossvalid equal to or less than char()|length_le|TRUE
+na or crossvalid equal to or less than char()|length_le|TRUE
 crossvalid datetime|datetime|FALSE
 crossvaliddate|datetime|FALSE
 na or datetime|datetime|TRUE
 na or date|datetime|TRUE
+na or valid before date|datebefore|TRUE
 na or crossvalid datetime|datetime|TRUE
 na or crossvaliddate|datetime|TRUE
-na or valid before date|datebefore|TRUE
+na or crossvalid isnumeric|isnumeric|TRUE
+na or isnumeric|isnumeric|TRUE
 "
 df <- read.csv(text = raw_csv,sep = "|")
 Qctype_mapping <- df |> purrr::pmap(\(check_type,is_na_ok,...) list(check_type=check_type,is_na_ok=as.logical(is_na_ok)) )

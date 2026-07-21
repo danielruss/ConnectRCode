@@ -33,6 +33,9 @@ register_bq_translation <- function(){
     dbplyr::build_sql("(SAFE.PARSE_DATE('%Y%m', SAFE_CAST(", x, " AS STRING)) IS NOT NULL OR ",
                       "SAFE.PARSE_DATE('%Y/%m', SAFE_CAST(", x, " AS STRING)) IS NOT NULL)")
   }
+  bigquery_is_numeric <- function(x) {
+    dbplyr::build_sql("(SAFE_CAST(", x, " AS NUMERIC) IS NOT NULL)")
+  }
   bigquery_str_length <- function(x){
     dbplyr::build_sql("LENGTH(COALESCE(SAFE_CAST(", x, " AS STRING), ''))")
   }
@@ -43,6 +46,7 @@ register_bq_translation <- function(){
         .parent = dbplyr::base_scalar,
         is.timestamp = bigquery_is_timestamp,
         is.datetime = bigquery_is_timestamp,
+        is.numeric = bigquery_is_numeric,
         str_length = bigquery_str_length,
         is_ymd = bigquery_is_ymd,
         is_ym = bigquery_is_ym
@@ -69,10 +73,12 @@ register_duckdb_translation <- function(){
     dbplyr::build_sql("(TRY_STRPTIME(TRY_CAST(", x, " AS VARCHAR), '%Y%m') IS NOT NULL OR ",
                       "TRY_STRPTIME(TRY_CAST(", x, " AS VARCHAR), '%Y/%m') IS NOT NULL)")
   }
+  duckdb_is_numeric <- function(x) {
+    dbplyr::build_sql("(TRY_CAST(", x, " AS DOUBLE) IS NOT NULL)")
+  }
   duckdb_str_length <- function(x) {
     dbplyr::build_sql("LENGTH(COALESCE(TRY_CAST(", x, " AS VARCHAR), ''))")
   }
-
   # 2. Register it specifically for the DuckDB connection class
   # Note: DuckDB's connection class is 'duckdb_connection'
   s3_method <- function(con){
@@ -81,6 +87,7 @@ register_duckdb_translation <- function(){
         .parent = dbplyr::base_scalar,
         is.timestamp = duckdb_is_timestamp,
         is.datetime = duckdb_is_timestamp,
+        is.numeric = duckdb_is_numeric,
         is_ymd = duckdb_is_ymd,
         is_ym = duckdb_is_ym,
         str_length = duckdb_str_length

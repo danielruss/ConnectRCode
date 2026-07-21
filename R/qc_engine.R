@@ -25,6 +25,7 @@ build_single_rule_query <- function(rule_id,ConceptID, check_type, is_na_ok,
                       datebefore = rlang::expr(!!col_sym >= local(!!ValidValues[[1]])),
                       is_na      = rlang::expr(!is.na(!!col_sym) & str_length(!!col_sym)>0),
                       not_na     = rlang::expr(is.na(!!col_sym) | str_length(!!col_sym)==0 ),
+                      isnumeric  = rlang::expr(!is.numeric(!!col_sym)),
                       stop("Unknown check type: ", check_type)
   )
 
@@ -268,26 +269,13 @@ run_qc <- function(bq_tbl, chunk_size = 30) {
     dplyr::mutate(chunk_id = ceiling(dplyr::row_number()/chunk_size)) |>
     dplyr::group_split(chunk_id, .keep = FALSE)
 
-  chunks |> purrr::map(\(chunk){
+  results <- chunks |> purrr::map(\(chunk){
     lazy_results <- build_chunk_query(lzy_tbl,chunk,key_cols)
+    chunk |> dplyr::count(Qctype) |> print(width=Inf)
     materialized <- lazy_results$query |> dplyr::collect()
-    results <- collapse_flags_to_rule_ids(materialized,lazy_results$id_map)
-#    chunk |> purrr::pmap(
-#      \(rule_id, ConceptID, check_type, is_na_ok,
-#        ValidValues, cross_columns, cross_values, ...) {
-#        build_rule_query(
-#          bq_tbl    = lzy_tbl,
-#          concept_col = ConceptID,
-#          c_type    = check_type,
-#          is_na_ok  = is_na_ok,
-#          valid_values = ValidValues,
-#          cross_columns = unname(cross_columns),
-#          cross_values = cross_values,
-#          rule_id   = rule_id
-#        )
-#      }
-#    )
-#    |>
+    collapse_flags_to_rule_ids(materialized,lazy_results$id_map)
   },.progress = "Running QC chunks") |>
     dplyr::bind_rows()
+
+  list(results=results, bad_rules=bad_rules)
 }
