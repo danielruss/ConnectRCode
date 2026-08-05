@@ -26,3 +26,5 @@ Imports:
     stringr
 Depends: 
     R (>= 4.1)
+Suggests: 
+    duckdb
