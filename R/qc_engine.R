@@ -45,7 +45,13 @@ build_single_rule_query <- function(rule_id,ConceptID, check_type, is_na_ok,
     cross_values <- cross_values[keep]
     needed_cols = unique(c(ConceptID, cross_columns))
     gate_exprs <- purrr::map2(cross_columns, cross_values, \(col, vals) {
-      rlang::expr(!!rlang::sym(col) %in% local(!!vals))
+      col_sym <- rlang::sym(col)
+
+      if (length(vals) == 1L && isTRUE(vals[[1]] == "*")) {
+        rlang::expr(!is.na(!!col_sym) & str_length(!!col_sym) > 0)
+      } else {
+        rlang::expr(!!col_sym %in% local(!!vals))
+      }
     })
     gate_expr <- purrr::reduce(gate_exprs, \(a, b) rlang::expr((!!a) & (!!b)))
 
@@ -187,6 +193,7 @@ build_rule_query <- function(bq_tbl, concept_col, c_type, is_na_ok,
     )
 }
 
+
 # ===========================================================================
 # Run all rules — one trip to BigQuery
 # ===========================================================================
@@ -271,11 +278,39 @@ run_qc <- function(bq_tbl, chunk_size = 30) {
 
   results <- chunks |> purrr::map(\(chunk){
     lazy_results <- build_chunk_query(lzy_tbl,chunk,key_cols)
-    chunk |> dplyr::count(Qctype) |> print(width=Inf)
+    #chunk |> dplyr::count(Qctype) |> print(width=Inf)
     materialized <- lazy_results$query |> dplyr::collect()
     collapse_flags_to_rule_ids(materialized,lazy_results$id_map)
   },.progress = "Running QC chunks") |>
     dplyr::bind_rows()
+  results <- results |>
+    dplyr::left_join(rules,by = "rule_id")
+  results <- results |> 
+    dplyr::mutate(explaination = pmap_char(dplyr::pick(dplyr::everything(),get_explanation)))
 
-  list(results=results, bad_rules=bad_rules)
+  ### THIS IS CONNECT SPECIFIC..
+  ### NEEDS TO BE REMOVED FROM QC_ENGINE...
+  ops_results <- results  |>
+    dplyr::mutate(Site = dplyr::case_when(
+      d_827220437==472940358 ~ "Baylor Scott and White",
+      d_827220437==125001209 ~ "KP Colorado",
+      d_827220437==327912200 ~ "KP Georgia",
+      d_827220437==300267574 ~ "KP Hawaii",
+      d_827220437==452412599 ~ "KP Northwest",
+      d_827220437==548392715 ~ "Henry Ford",
+      d_827220437==531629870 ~ "HealthPartners",
+      d_827220437==303349821 ~ "Marshfield",
+      d_827220437==657167265 ~ "Sanford",
+      d_827220437==809703864 ~ "UChicago"
+    )) |>
+    dplyr::select(rule_id,token,Connect_ID,Site)
+
+
+  list(results=results, bad_rules=bad_rules, ops_results)
+}
+
+
+`%??%` <- function(a, b) {
+  if (is.null(a)) return(b)
+  ifelse(is.na(a),b,a)
 }
