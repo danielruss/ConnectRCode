@@ -257,8 +257,6 @@ run_qc <- function(bq_tbl, chunk_size = 30) {
     message(rep("-",55),"\nBad rules\n",rep("-",55))
     print(bad_rules)
     message(rep("-",55))
-    #arrow::write_feather(bad_rules,"bad_rules.feather")
-    #stop()
   }
 
   rules <- rules |> dplyr::filter(!(rule_id %in% bad_rules$rule_id))
@@ -285,29 +283,14 @@ run_qc <- function(bq_tbl, chunk_size = 30) {
     dplyr::bind_rows()
   results <- results |>
     dplyr::left_join(rules,by = "rule_id")
-  results <- results |> 
-    dplyr::mutate(explaination = pmap_char(dplyr::pick(dplyr::everything(),get_explanation)))
 
-  ### THIS IS CONNECT SPECIFIC..
-  ### NEEDS TO BE REMOVED FROM QC_ENGINE...
-  ops_results <- results  |>
-    dplyr::mutate(Site = dplyr::case_when(
-      d_827220437==472940358 ~ "Baylor Scott and White",
-      d_827220437==125001209 ~ "KP Colorado",
-      d_827220437==327912200 ~ "KP Georgia",
-      d_827220437==300267574 ~ "KP Hawaii",
-      d_827220437==452412599 ~ "KP Northwest",
-      d_827220437==548392715 ~ "Henry Ford",
-      d_827220437==531629870 ~ "HealthPartners",
-      d_827220437==303349821 ~ "Marshfield",
-      d_827220437==657167265 ~ "Sanford",
-      d_827220437==809703864 ~ "UChicago"
-    )) |>
-    dplyr::select(rule_id,token,Connect_ID,Site)
-
-
-  list(results=results, bad_rules=bad_rules, ops_results)
+  list(results=results, bad_rules=bad_rules)
 }
+
+
+
+ # results <- results |>
+ #   dplyr::mutate(explanation = pmap_chr(dplyr::pick(dplyr::everything(),get_explanation)))
 
 
 `%??%` <- function(a, b) {
