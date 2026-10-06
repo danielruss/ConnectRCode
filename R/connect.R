@@ -12,6 +12,7 @@
 #'   ID when no trailing digits are found. Missing inputs remain missing.
 #' @examples
 #' c4cp_normalize_cid(c("123", "d_123_d_456", "abc", NA_character_))
+#' @export
 c4cp_normalize_cid <- function(cid) {
   stringr::str_extract(cid,"\\d+$") %??% as.character(cid)
 }
@@ -29,6 +30,7 @@ c4cp_normalize_cid <- function(cid) {
 #' @details A dictionary must be configured with `set_dict()` before calling
 #'   this function. Site labels are obtained through `lookup()`, which uses
 #'   the configured concept ID normalizer.
+#' @export
 make_ops_report <- function(df){
   df |> dplyr::mutate(Site = lookup(d_827220437)) |>
     dplyr::select(rule_id,token,Connect_ID,Site)

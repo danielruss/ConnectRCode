@@ -2,6 +2,19 @@
 .dict_store$dictionary <- NULL
 .dict_store$normalize_cid <- identity
 
+#' Configure the data dictionary
+#'
+#' Store the dictionary and concept ID normalizer used by [lookup()] and
+#' [explain()] for the current R session. Calling this function replaces the
+#' previously configured dictionary and normalizer.
+#'
+#' @param df A data frame containing `concept_id` and `definitions` columns.
+#' @param normalize_cid A function that takes a character vector of identifiers
+#'   and returns a vector of the same length for matching against `concept_id`.
+#'   Defaults to [identity()]. Dictionary identifiers are not normalized.
+#' @return The supplied `normalize_cid` function, invisibly.
+#' @seealso [lookup()], [c4cp_normalize_cid()]
+#' @export
 set_dict <- function(df, normalize_cid = identity){
   required_cols <- c("concept_id","definitions")
   missing_col <- setdiff(required_cols,names(df))
@@ -15,6 +28,21 @@ set_dict <- function(df, normalize_cid = identity){
 }
 
 
+#' Look up concept definitions
+#'
+#' Translate concept identifiers using the configured data dictionary.
+#' Identifiers are converted to character and normalized with the function
+#' configured by `set_dict()` before matching. Missing definitions and unmatched
+#' identifiers fall back to the original identifiers.
+#'
+#' @param cids A vector or list of concept identifiers.
+#' @return A vector of definitions, or a list with the same structure as `cids`
+#'   when the input is a list.
+#' @details A dictionary with `concept_id` and `definitions` columns must be
+#'   configured with `set_dict()` before calling this function. An error is
+#'   raised if no dictionary is configured.
+#' @seealso [explain()]
+#' @export
 lookup <- function(cids){
   if (is.null(.dict_store$dictionary$definitions)){
     rlang::abort("The data dictionary is not defined!")
@@ -154,4 +182,26 @@ get_explanation <- function(...) {
   row <- list(...)
   fun <- get_explainer(row$Qctype)
   fun(row)
+}
+
+
+#' Add explanations to quality-control results
+#'
+#' Describe each quality-control rule and its observed value, including any
+#' cross-column conditions and the rule's missing-value policy. Dictionary
+#' definitions are used when available; otherwise, literal values are shown.
+#'
+#' @param df A data frame of quality-control results containing `Qctype`,
+#'   `ConceptID`, `ValidValues`, `cross_columns`, and `cross_values`, together
+#'   with the observed-value columns named by `ConceptID`. Rule values and
+#'   cross-column conditions may be stored in list-columns.
+#' @return `df` with a character column named `explanation`
+#'   containing one explanation per row. An existing column of that name is
+#'   replaced.
+#' @details Unrecognized or missing quality-control types receive a fallback
+#'   message indicating that an explanation is not configured.
+#' @seealso [lookup()], [run_qc()]
+#' @export
+explain <- function(df){
+  df |> dplyr::mutate(explanation=purrr::pmap_chr(pick(everything()),get_explanation))
 }

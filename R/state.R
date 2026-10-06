@@ -306,6 +306,13 @@ bq_connect <- function(module = NULL, env = NULL) {
   tryCatch(load_state(), error = function(e) NULL)
 }
 
+#' Get the currently loaded rules
+#'
+#' Retrieve the rules stored in the active package state.
+#'
+#' @return The currently loaded rules, or `NULL` if no rules have been stored.
+#' @seealso [load_rules()], [reload_rules()]
+#' @export
 rules <- function(){
   .app_state$rules
 }

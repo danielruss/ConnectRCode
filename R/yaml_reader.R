@@ -89,10 +89,17 @@ load_config <- function(path) {
   invisible(path)
 }
 
+#' Display the loaded configuration summary
+#'
+#' Print messages showing the loaded configuration file path and the available
+#' environment and module names.
+#'
+#' @return `NULL`, invisibly. Called for its messages.
+#' @seealso [load_config()], [list_modules()]
+#' @export
 configs <- function(){
   message("Loaded config: ", .app_state$config_file)
   message("  Environments : ", paste(names(.app_state$config$envs), collapse = ", "))
   message("  Modules      : ", paste(names(.app_state$config$modules), collapse = ", "))
 }
-
 
